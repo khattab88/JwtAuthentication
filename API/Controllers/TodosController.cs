@@ -1,4 +1,5 @@
-﻿using API.Models;
+﻿using API.Data;
+using API.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,17 +12,26 @@ namespace API.Controllers
     [ApiController]
     public class TodosController : ControllerBase
     {
-        private static List<Todo> todos = new List<Todo>()
+        //private static List<Todo> todos = new List<Todo>()
+        //{
+        //    new Todo{ Id = 1, Title = "todo 1", Completed = true },
+        //    new Todo{ Id = 2, Title = "todo 2", Completed = false },
+        //    new Todo{ Id = 3, Title = "todo 3", Completed = false },
+        //};
+
+        private readonly AppDbContext _db;
+
+        public TodosController(AppDbContext db)
         {
-            new Todo{ Id = 1, Title = "todo 1", Completed = true },
-            new Todo{ Id = 2, Title = "todo 2", Completed = false },
-            new Todo{ Id = 3, Title = "todo 3", Completed = false },
-        };
+            _db = db;
+        }
 
         // GET: api/<TodosController>
         [HttpGet]
         public IActionResult Get()
         {
+            var todos = _db.Todos.ToList();
+
             return Ok(todos);
         }
 
@@ -29,7 +39,7 @@ namespace API.Controllers
         [HttpGet("{id}")]
         public IActionResult Get(int id)
         {
-            var todo = todos.FirstOrDefault(t => t.Id == id);
+            var todo = _db.Todos.FirstOrDefault(t => t.Id == id);
             return Ok(todo);
         }
 
@@ -37,10 +47,12 @@ namespace API.Controllers
         [HttpPost]
         public IActionResult Post([FromBody] Todo todo)
         {
-            todo.Id = todos.Max(t => t.Id) + 1;
-            todo.Completed = false;
+            if(!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            todos.Add(todo);
+            _db.Todos.Add(todo);
+            _db.SaveChanges();
+
             return Created("", todo);
         }
 
@@ -50,11 +62,13 @@ namespace API.Controllers
         {
             if(id != todo.Id) return BadRequest(todo.Id);
 
-            var existing = todos.FirstOrDefault(t => t.Id == id);
+            var existing = _db.Todos.FirstOrDefault(t => t.Id == id);
             if (existing is null) return NotFound();
 
             existing.Title = todo.Title;
             existing.Completed = todo.Completed;
+
+            _db.SaveChanges();
 
             return NoContent();
         }
@@ -63,10 +77,11 @@ namespace API.Controllers
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var existing = todos.FirstOrDefault(t => t.Id == id);
+            var existing = _db.Todos.FirstOrDefault(t => t.Id == id);
             if (existing is null) return NotFound();
 
-            todos.Remove(existing);
+            _db.Todos.Remove(existing);
+            _db.SaveChanges();
 
             return NoContent();
         }
