@@ -1,5 +1,7 @@
 ﻿using API.Data;
 using API.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,15 +12,9 @@ namespace API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class TodosController : ControllerBase
     {
-        //private static List<Todo> todos = new List<Todo>()
-        //{
-        //    new Todo{ Id = 1, Title = "todo 1", Completed = true },
-        //    new Todo{ Id = 2, Title = "todo 2", Completed = false },
-        //    new Todo{ Id = 3, Title = "todo 3", Completed = false },
-        //};
-
         private readonly AppDbContext _db;
 
         public TodosController(AppDbContext db)
