@@ -4,6 +4,7 @@ using API.Dtos.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -82,6 +83,53 @@ namespace API.Controllers
                 });
             }
         }
+
+        [HttpPost]
+        [Route("Login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                var response = new LoginResponse();
+                response.Success = false;
+                response.Errors.Add("Invalid payload");
+
+                return BadRequest(response);
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+
+            if(existingUser == null)
+            {
+                var response = new LoginResponse();
+                response.Success = false;
+                response.Errors.Add("Invalid login");
+
+                return NotFound(response);
+            }
+
+            var validPassword = await _userManager.CheckPasswordAsync(existingUser, request.Password);
+
+            if (!validPassword)
+            {
+                var response = new LoginResponse();
+                response.Success = false;
+                response.Errors.Add("Invalid login");
+
+                return NotFound(response);
+            }
+            else
+            {
+                var jwt = GenerateJwtToken(existingUser);
+
+                return Ok(new LoginResponse
+                {
+                    Success = true,
+                    Token = jwt,
+                });
+            }
+        }
+
 
         private string GenerateJwtToken(IdentityUser user)
         {
