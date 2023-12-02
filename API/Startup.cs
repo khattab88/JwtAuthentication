@@ -101,6 +101,8 @@ namespace API
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseCors("Open");
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
