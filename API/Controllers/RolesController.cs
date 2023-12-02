@@ -108,5 +108,31 @@ namespace API.Controllers
             var userRoles = await _userManager.GetRolesAsync(user);
             return Ok(userRoles);
         }
+
+        [HttpPost]
+        [Route("RemoveUserFromRole")]
+        public async Task<IActionResult> RemoveUserFromRole(string userEmail, string roleName)
+        {
+            var user = await _userManager.FindByEmailAsync(userEmail);
+            if (user is null)
+            {
+                return BadRequest(new { Error = "User does not exist" });
+            }
+
+
+            var userInRole = await _userManager.IsInRoleAsync(user, roleName);
+            if (!userInRole)
+            {
+                return BadRequest(new { Error = "User is not in role" });
+            }
+
+            var result = await _userManager.RemoveFromRoleAsync(user, roleName);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { Error = "User has not been removed from role" });
+            }
+
+            return Ok(new { Message = "User removed successfully from role" });
+        }
     }
 }
