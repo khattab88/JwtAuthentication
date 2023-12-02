@@ -68,7 +68,7 @@ namespace API
                 jwt.TokenValidationParameters = tokenValidationParameters;
             });
 
-            services.AddDefaultIdentity<IdentityUser>(options => 
+            services.AddIdentity<IdentityUser, IdentityRole>(options => 
             {
                 options.SignIn.RequireConfirmedAccount = true;
             })
