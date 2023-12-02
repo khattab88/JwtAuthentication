@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -58,6 +60,39 @@ namespace API.Controllers
 
             _logger.LogInformation($"Role {name} created successfully");
             return Ok(new { Message = $"Role {name} created successfully" });
+        }
+
+        [HttpGet]
+        [Route("GetAllUsers")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            return Ok(users);
+        }
+
+        [HttpPost]
+        [Route("AddUserToRole")]
+        public async Task<IActionResult> AddUserToRole(string userEmail, string roleName)
+        {
+            var user = await _userManager.FindByEmailAsync(userEmail);
+            if (user is null)
+            {
+                return BadRequest(new { Error = "User does not exist" });
+            }
+
+            var roleExists = await _roleManager.RoleExistsAsync(roleName);
+            if(!roleExists) 
+            {
+                return BadRequest(new { Error = "Role does not exist" });
+            }
+
+            var result = await _userManager.AddToRoleAsync(user, roleName);
+            if(!result.Succeeded) 
+            {
+                return BadRequest(new { Error = "something wrong happened" });
+            }
+
+            return Ok(new { Message = "User added to role successfully" });
         }
     }
 }
