@@ -94,5 +94,19 @@ namespace API.Controllers
 
             return Ok(new { Message = "User added to role successfully" });
         }
+
+        [HttpGet]
+        [Route("GetUserRoles")]
+        public async Task<IActionResult> GetUserRoles(string userEmail)
+        {
+            var user = await _userManager.FindByEmailAsync(userEmail);
+            if (user is null)
+            {
+                return BadRequest(new { Error = "User does not exist" });
+            }
+
+            var userRoles = await _userManager.GetRolesAsync(user);
+            return Ok(userRoles);
+        }
     }
 }
