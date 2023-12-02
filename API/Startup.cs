@@ -51,6 +51,7 @@ namespace API
                 ValidateAudience = false,
                 ValidateLifetime = true,
                 RequireExpirationTime = false,
+                ClockSkew = TimeSpan.Zero
             };
 
             services.AddSingleton<TokenValidationParameters>(tokenValidationParameters);
