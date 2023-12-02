@@ -11,6 +11,7 @@ namespace API.Data
         {
         }
 
-        public DbSet<Todo> Todos { get; set; }
+        public virtual DbSet<Todo> Todos { get; set; }
+        public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }

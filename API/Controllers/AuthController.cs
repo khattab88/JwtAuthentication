@@ -1,6 +1,9 @@
 ﻿using API.Config;
+using API.Data;
+using API.Dtos;
 using API.Dtos.Requests;
 using API.Dtos.Responses;
+using API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -22,14 +25,20 @@ namespace API.Controllers
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly JwtConfig _jwtConfig;
+        private readonly TokenValidationParameters _tokenValidationParameters;
+        private readonly AppDbContext _db;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
-            IOptionsMonitor<JwtConfig> optionsMonitor
+            IOptionsMonitor<JwtConfig> optionsMonitor,
+            TokenValidationParameters tokenValidationParameters,
+            AppDbContext db
             )
         {
             _userManager = userManager;
             _jwtConfig = optionsMonitor.CurrentValue;
+            _tokenValidationParameters = tokenValidationParameters;
+            _db = db;
         }
 
         [HttpPost]
@@ -74,13 +83,9 @@ namespace API.Controllers
             }
             else
             {
-                var jwt = GenerateJwtToken(newUser);
+                var result = await GenerateJwtToken(newUser);
 
-                return Ok(new RegisterResponse 
-                {
-                    Success = true,
-                    Token = jwt,
-                });
+                return Ok(result);
             }
         }
 
@@ -120,18 +125,14 @@ namespace API.Controllers
             }
             else
             {
-                var jwt = GenerateJwtToken(existingUser);
+                var result = await GenerateJwtToken(existingUser);
 
-                return Ok(new LoginResponse
-                {
-                    Success = true,
-                    Token = jwt,
-                });
+                return Ok(result);
             }
         }
 
 
-        private string GenerateJwtToken(IdentityUser user)
+        private async Task<AuthResult> GenerateJwtToken(IdentityUser user)
         {
             var jwtTokenHandler = new JwtSecurityTokenHandler();
 
@@ -146,14 +147,43 @@ namespace API.Controllers
                     new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
                 }),
-                Expires = DateTime.UtcNow.AddHours(6),
+                Expires = DateTime.UtcNow.AddSeconds(30),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
 
             var token = jwtTokenHandler.CreateToken(tokenDescriptor);
             var jwt = jwtTokenHandler.WriteToken(token);
 
-            return jwt;
+
+            var refreshToken = new RefreshToken()
+            {
+                JwtId = token.Id,
+                IsUsed = false,
+                IsRevoked = false,
+                UserId = user.Id,
+                AddedDate = DateTime.UtcNow,
+                ExpiryDate = DateTime.UtcNow.AddMonths(6),
+                Token = RandomString(32) + Guid.NewGuid().ToString(),
+            };
+
+            await _db.RefreshTokens.AddAsync(refreshToken);
+            await _db.SaveChangesAsync();
+
+            return new AuthResult()
+            {
+                Success = true,
+                Token = jwt,
+                RefreshToken = refreshToken.Token
+            };
+        }
+
+        private string RandomString(int length)
+        {
+            var random = new Random();
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(c => c[random.Next(length)])
+                .ToArray());
         }
     }
 }
