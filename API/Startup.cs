@@ -39,6 +39,8 @@ namespace API
                 options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
             });
 
+
+            // Authentication
             services.Configure<JwtConfig>(Configuration.GetSection("JwtConfig"));
 
             var key = Encoding.ASCII.GetBytes(Configuration["JwtConfig:Secret"]);
@@ -68,11 +70,20 @@ namespace API
                 jwt.TokenValidationParameters = tokenValidationParameters;
             });
 
+            // Authorization
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("DepartmentPolicy", 
+                    policy => policy.RequireClaim("dept"));
+            });
+
+            // Identity System
             services.AddIdentity<IdentityUser, IdentityRole>(options => 
             {
                 options.SignIn.RequireConfirmedAccount = true;
             })
             .AddEntityFrameworkStores<AppDbContext>();
+
 
             services.AddControllers();
             services.AddSwaggerGen(c =>

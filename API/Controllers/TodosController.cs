@@ -44,6 +44,7 @@ namespace API.Controllers
 
         // POST api/<TodosController>
         [HttpPost]
+        [Authorize(Policy = "DepartmentPolicy")]
         public IActionResult Post([FromBody] Todo todo)
         {
             if(!ModelState.IsValid)
