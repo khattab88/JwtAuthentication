@@ -26,18 +26,21 @@ namespace API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly JwtConfig _jwtConfig;
         private readonly TokenValidationParameters _tokenValidationParameters;
         private readonly AppDbContext _db;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
+            RoleManager<IdentityRole> roleManager,
             IOptionsMonitor<JwtConfig> optionsMonitor,
             TokenValidationParameters tokenValidationParameters,
             AppDbContext db
             )
         {
             _userManager = userManager;
+            _roleManager = roleManager;
             _jwtConfig = optionsMonitor.CurrentValue;
             _tokenValidationParameters = tokenValidationParameters;
             _db = db;
@@ -85,6 +88,9 @@ namespace API.Controllers
             }
             else
             {
+                // add user to role
+                await _userManager.AddToRoleAsync(newUser, "User");
+
                 var result = await GenerateJwtTokens(newUser);
 
                 return Ok(result);
@@ -167,15 +173,11 @@ namespace API.Controllers
 
             var key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
 
+            var claims = await GetAllValidClaims(user);
+
             var tokenDescriptor = new SecurityTokenDescriptor 
             {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim("Id", user.Id),
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                    new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                }),
+                Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddSeconds(30),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
@@ -204,6 +206,43 @@ namespace API.Controllers
                 Token = jwt,
                 RefreshToken = refreshToken.Token
             };
+        }
+
+        private async Task<List<Claim>> GetAllValidClaims(IdentityUser user)
+        {
+            // var identityOptions = new IdentityOptions();
+
+            var claims = new List<Claim>()
+            {
+                new Claim("Id", user.Id),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            // get user claims and add it to claims
+            var userClaims = await _userManager.GetClaimsAsync(user);
+            claims.AddRange(userClaims);
+
+            // get user roles and add it to claims
+            var userRoles = await _userManager.GetRolesAsync(user);
+            foreach (var userRole in userRoles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, userRole));
+
+                var role = await _roleManager.FindByNameAsync(userRole);
+                if(role is not null)
+                {
+                    var roleClaims = await _roleManager.GetClaimsAsync(role);
+
+                    foreach (var roleClaim in roleClaims)
+                    {
+                        claims.Add(roleClaim);
+                    }
+                }
+            }
+
+            return claims;
         }
 
         private string RandomString(int length)
